@@ -1,0 +1,12 @@
+.env
+.env.*
+*.pem
+*.key
+*.log
+bin/
+dist/
+node_modules/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
