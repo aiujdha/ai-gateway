@@ -14,11 +14,11 @@ const (
 )
 
 type Task struct {
-	ID         string
-	Model      string
-	Status     Status
-	ResultURL  string
-	Error      string
+	ID        string
+	Model     string
+	Status    Status
+	ResultURL string
+	Error     string
 }
 
 type Service interface {

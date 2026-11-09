@@ -1,12 +1,12 @@
-// Package relay describes the model adapter boundary. No adapter is implemented.
+// Package relay defines model adapters, including the local text provider.
 package relay
 
 import "context"
 
 type Request struct {
-	Model   string
-	Prompt  string
-	Stream  bool
+	Model  string
+	Prompt string
+	Stream bool
 }
 
 type Response struct {

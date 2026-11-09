@@ -1,3 +1,5 @@
+.local/
+*.exe
 .env
 .env.*
 *.pem

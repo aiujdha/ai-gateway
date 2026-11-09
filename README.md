@@ -1,56 +1,46 @@
 # AI Gateway
 
-面向大模型统一接入与运行治理的 **Go 架构展示骨架**，用于说明项目分层和模块职责。
+基于 Go 标准库的统一模型调用服务，包含浏览器操作页、本地模型适配器、主备渠道切换、流式输出及调用记录。
 
-> 本仓库只有目录、接口与入口占位，不提供真实模型转发、故障切换、任务执行或计费功能；不是完整产品，也不包含企业源码、业务数据与部署配置。
+## 启动
 
-## 架构
-
-```text
-业务应用 / Agent
-       |
-       v
-接入层（预留） --> 访问控制 --> 渠道选择 --> 模型适配
-                      |           |           |
-                      +------ 请求追踪 -------+
-                                  |
-                         异步任务 / 用量结算
-```
-
-## 目录与能力对应
-
-| 目录 | 展示内容 | 当前状态 |
-| --- | --- | --- |
-| `cmd/gateway/` | 程序入口 | 输出骨架说明，不启动服务 |
-| `internal/relay/` | 多模型请求与 Provider 协议 | 类型与接口占位 |
-| `internal/routing/` | 渠道选择、优先级、权重、重试边界 | 类型与接口占位 |
-| `internal/task/` | 异步任务状态与任务查询 | 类型与接口占位 |
-| `internal/trace/` | Request ID、Trace ID 与上游执行记录 | 类型与接口占位 |
-| `internal/access/` | API Key、模型与分组访问控制 | 接口占位 |
-| `internal/billing/` | 预扣、结算、退款 | 接口占位 |
-| `web/` | 管理后台边界 | 目录说明 |
-| `deploy/` | 容器与基础设施边界 | 目录说明 |
-
-模型适配、渠道调度、异步任务、链路追踪和部署分层，分别对应简历中的五个工程主题；这里展示模块位置和接口边界，不代表这些功能已经实现。
-
-## 技术定位
-
-- 骨架使用 Go 标准库，无第三方依赖。
-- 后续接入层可使用 Gin，持久化层可使用 GORM / MySQL，缓存可使用 Redis。
-- React / TypeScript 管理界面、OSS 日志正文存储和 Docker 部署均未实现。
-
-## 查看入口
-
-本机安装 Go 1.22 或以上版本后：
+安装 Go 1.22+，在仓库根目录运行：
 
 ```bash
 go run ./cmd/gateway
 ```
 
-命令仅打印项目说明后退出，不监听端口、不连接模型或数据库。
+打开 http://127.0.0.1:8080 。输入文字并发送请求；勾选“模拟主渠道故障”可观察请求切换至 backup，以及同一 Request ID 下的两次渠道记录。服务默认只监听本机，可用 GATEWAY_ADDR 修改地址。
 
-## 参考与许可
+## 接口
 
-架构主题参考 [New API](https://github.com/QuantumNous/new-api) 的模型网关分层。本仓库是独立编写的简化骨架，不是其源码镜像或官方发行版，也不代表任何企业的正式产品。
+| 接口 | 用途 |
+| --- | --- |
+| GET /v1/models | 查看本地模型 local-chat |
+| POST /v1/chat/completions | 普通 JSON 或 SSE 响应 |
+| GET /api/status | 当前本地额度与最近 100 条渠道执行记录 |
+| GET /health | 服务就绪检查 |
 
-本仓库新增骨架代码使用 [MIT License](LICENSE)；参考项目保持其各自的许可证与归属。
+调用 /v1/ 和 /api/ 接口需要请求头 `Authorization: Bearer local-gateway-key`。这是公开的本机体验密钥，不是可用于公网服务的认证配置。
+
+```bash
+curl http://127.0.0.1:8080/v1/chat/completions -H "Authorization: Bearer local-gateway-key" -H "Content-Type: application/json" -d '{"model":"local-chat","messages":[{"role":"user","content":"hello"}],"stream":false}'
+```
+
+请求头 `X-Local-Fail-Primary: true` 可触发主渠道失败；`X-Local-Fail-All: true` 可检查所有渠道失败时不扣额度的行为。返回头包括 X-Request-ID、X-Trace-ID、X-Channel-ID。
+
+## 模块
+
+- internal/relay：Provider 协议与本地确定性文本适配器。
+- internal/server：HTTP 接入、主备调用、内存额度及请求追踪，页面随 Go 二进制嵌入。
+- internal/routing、access、billing、task、trace：保留扩展接口与类型。
+
+本地适配器不会调用真实模型。响应字段中的 Token 数按字符数近似，仅用于演示用量流程，不代表模型实际 Token 或费用。服务重启后额度和记录清空。当前仅实现 local-chat 的文本调用子集；权重调度、真实模型协议转换、异步媒体任务、数据库与 OSS 尚未接入。
+
+## 检查
+
+```bash
+go test ./...
+```
+
+架构主题参考 [New API](https://github.com/QuantumNous/new-api)；本仓库是独立实现，不包含其企业定制代码。采用 [MIT License](LICENSE)。
